@@ -1,44 +1,64 @@
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Telegram.RequestTelegram where
 
-import Data.ByteString.Char8 (pack)
-import Data.ByteString.Lazy (ByteString)
-import Data.ByteString.Char8 (pack)
-import Network.HTTP.Client
-import Network.HTTP.Client.TLS (tlsManagerSettings)
-import qualified Network.HTTP.Types as HTTP
+import Control.Monad
+import Data.Aeson
+import GHC.Generics
+import Data.Text 
 
 
-t = 77
+data Updates = Updates
+  { ok :: Bool
+  , result :: [Update]
+  } deriving (Show, Generic)
 
--- sendTelegram :: LogConfig -> String -> [RequestParam] -> IO ()
--- sendTelegram  url params = do
---   let logManager =
---         if l == Debug
---           then tlsManagerSettings
---                  { managerModifyRequest =
---                      \r ->
---                        appendFile f "\nrequest to server: " >>
---                        appendFile f (show r) >>
---                        return r
---                  , managerModifyResponse =
---                      \r ->
---                        appendFile f "\nresponse status: " >>
---                        appendFile f (show $ responseStatus r) >>
---                        return r
---                  }
---           else tlsManagerSettings
---       body = buildRequestBody params
---   manager <- newManager logManager
---   request <- buildRequest url body
---   response <- httpLbs request manager
---   return ()
+data Update = Update
+  { update_id :: Integer
+  , message :: TelegramMessage
+  } deriving (Show, Generic)
+ 
+data TelegramMessage = TelegramMessage
+  { message_id :: Integer
+  , from :: User
+  , chat :: Chat
+  , date :: Integer
+  , text :: String
+  } deriving (Show, Generic)
 
--- buildRequest :: String -> RequestBody -> IO Request
--- buildRequest url body = do
---   nakedRequest <- parseRequest url
---   return
---     (nakedRequest
---        { method = "POST"
---        , requestBody = body
---        , requestHeaders = [(HTTP.hContentType, "application/json")]
---        })
+-- parseTelegramMessage :: TelegramMessage -> RequestParam
+-- parseTelegramMessage t  = ( text t , (show $ message_id t))
+-- instance Message TelegramMessage where
+--   type Id TelegramMessage = Chat
+--   messId = chat
+--   messText = text
+
+data User = User
+  { user_id :: Integer
+  , first_name :: String
+  } deriving (Show, Generic)
+
+instance FromJSON User where
+  parseJSON (Object v) = User <$> v .: "id" <*> v .: "first_name"
+  parseJSON _ = mzero
+
+data Chat = Chat
+  { chat_id :: Integer
+  , chat_first_name :: String
+  , chat_type :: String
+  } deriving (Show, Generic)
+
+instance FromJSON Chat where
+  parseJSON (Object v) =
+    Chat <$> v .: "id" <*> v .: "first_name" <*> v .: "type"
+  parseJSON _ = mzero
+
+instance FromJSON Updates
+
+instance FromJSON Update
+
+instance FromJSON TelegramMessage
+
+newtype Token = Token Text

@@ -2,29 +2,23 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 
 module Main where
 
 import Control.Concurrent.Async
-import           Data.Aeson.Parser           
-import           Data.Conduit                (($$))
-import           Data.Conduit.Attoparsec     (sinkParser)
-import           Network.HTTP.Client
-import           Network.HTTP.Types.Status   (statusCode)
-import Data.Aeson
-import Entities
+import           Data.Aeson            (Value)
+import qualified Data.ByteString.Char8 as S8
+import           Network.HTTP.Simple
 import qualified Data.ByteString.Lazy as B
 import Network.HTTP.Conduit (simpleHttp)
+import           Network.HTTP.Client.TLS     (tlsManagerSettings)
+import Network.HTTP.Conduit
 
-myparse :: Updates -> [Update]
-myparse (Updates a s) = s
 
-telmes :: Update -> TelegramMessage
-telmes (Update a c) = c
+import Request.Entities
 
-myparse' :: Updates -> TelegramMessage
-myparse' x = telmes $ last $ (myparse x)
 
 jsonURL :: String
 jsonURL = "https://api.telegram.org/bot1059314734:AAEFI9JK2VX9KWvBXKIrPn0VEdqCCy6YlFo/getUpdates"
@@ -32,9 +26,21 @@ jsonURL = "https://api.telegram.org/bot1059314734:AAEFI9JK2VX9KWvBXKIrPn0VEdqCCy
 getJSON :: IO B.ByteString
 getJSON = simpleHttp jsonURL
 
+main :: IO ()
 main = do
-    d  <- (eitherDecode <$> getJSON) :: IO (Either String Updates)
+    request <- parseRequest "https://api.telegram.org/bot1059314734:AAEFI9JK2VX9KWvBXKIrPn0VEdqCCy6YlFo/getUpdates"
+    response  <- httpJSON request :: IO (Response Updates)
+    let d = (getResponseStatusCode response)
     case d of
-      Left err -> putStrLn err
-      Right ps  -> print (myparse' ps)
+      200 -> print (responseBody response)
+      _   -> print "( message (last (result ps)))"
+
+   
+    -- print $  response
+    -- request <- parseRequest "http://httpbin.org/get"
+    -- d  <- (eitherDecode <$> getJSON) :: IO (Either String Updates)
+    -- case d of
+    --   Left err -> putStrLn err
+    --   Right ps  -> print ( message (last (result ps)))
+
 

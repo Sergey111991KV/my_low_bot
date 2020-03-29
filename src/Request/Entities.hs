@@ -2,14 +2,13 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Entities where
+module Request.Entities where
 
 import Control.Monad
 import Data.Aeson
 import GHC.Generics
 import Data.Text 
-
-
+import Request.Request
 
 data Updates = Updates
   { ok :: Bool
@@ -29,6 +28,8 @@ data TelegramMessage = TelegramMessage
   , text :: String
   } deriving (Show, Generic)
 
+parseTelegramMessage :: TelegramMessage -> RequestParam
+parseTelegramMessage t  = ( text t , (show $ message_id t))
 -- instance Message TelegramMessage where
 --   type Id TelegramMessage = Chat
 --   messId = chat

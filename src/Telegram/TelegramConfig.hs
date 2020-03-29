@@ -11,6 +11,7 @@ import Data.Aeson
 import GHC.Generics
 import Bot.Bot
 import Telegram.RequestTelegram
+import Bot.EchoBot
 
 
 data TelegramConfig = TelegramConfig
@@ -39,7 +40,17 @@ instance Bot TelegramBot where
     -- getBotWithConfig :: BotConfig b -> b
   type BotConfig  TelegramBot = TelegramConfig
   type BotMessage TelegramBot = TelegramMessage
+
+instance EchoBot TelegramBot where
+    helpMessage = help . config
+    repeatsCount = repeats . config
+    repeatsTxt _ = keyboard
+    isWaitingForRepeats = waitingForRepeats
+    setRepeatsCount r b@TelegramBot {config = c} = b {config = c {repeats = r}}
   
+keyboard :: String
+keyboard =
+  "{\"keyboard\":[[\"1\",\"2\",\"3\",\"4\",\"5\"]],\"resize_keyboard\": true, \"one_time_keyboard\": true}"
     -- getLastMessage = do
     --     tBot@TelegramBot {config = c, getUpdates = updStr, lastMessId = oldId} <-
     --       get

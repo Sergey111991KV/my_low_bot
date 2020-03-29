@@ -14,7 +14,7 @@ import           Network.HTTP.Simple
 -- import qualified Data.ByteString.Lazy as B
 import Network.HTTP.Conduit (simpleHttp)
 import           Network.HTTP.Client.TLS     (tlsManagerSettings)
-import Network.HTTP.Conduit
+-- import Network.HTTP.Conduit
 
 import Telegram.RequestTelegram
 import Telegram.Telegram
@@ -28,7 +28,7 @@ jsonURL = "https://api.telegram.org/bot1059314734:AAEFI9JK2VX9KWvBXKIrPn0VEdqCCy
 main :: IO ()
 main = do
     telegramConfig <- getTelegramConfig
-    runTelegramEcho telegramConfig
+    runTelegramEcho telegramConfig 0
 
    
     -- print $  response

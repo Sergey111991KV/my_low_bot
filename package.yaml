@@ -36,6 +36,7 @@ dependencies:
 - wai
 - conduit
 - conduit-extra
+- rio
 
 
 library:

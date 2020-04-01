@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 
 
@@ -21,7 +22,9 @@ import Text.Read (readMaybe)
 import Bot.EchoBot
 import Telegram.RequestTelegram
 import Telegram.TelegramConfig
-
+import Logging.Logging
+import Control.Exception          (try)
+import Data.Typeable
 
 runTelegramEcho :: TelegramConfig -> Integer -> IO ()
 runTelegramEcho c i = moveRequest c i
@@ -32,7 +35,13 @@ getTelegramConfig = do
         let telegramToken = "1059314734:AAEFI9JK2VX9KWvBXKIrPn0VEdqCCy6YlFo"
         telegramRepeats <- maybe 1 read <$> lookupEnv "TG_REPEATS"
         telegramHelp    <- fromMaybe ("Echo bot. Repeats every message n times (default n = " ++ show telegramRepeats ++ "). To change n write /repeat") <$> lookupEnv "TG_HELP"
-        return $ TelegramConfig telegramToken telegramHelp telegramRepeats
+        logFile         <- fromMaybe "telegram.log" <$> lookupEnv "TG_LOG_FILE"
+        logConsoleStr   <- fromMaybe "False" <$> lookupEnv "TG_LOG_CONSOLE"
+        logLevelStr     <- fromMaybe "Debug" <$> lookupEnv "TG_LOG_LEVEL"
+        let logLevel   = fromMaybe (error "incorrect log level!") $ readMaybe logLevelStr
+            logConsole = fromMaybe (error "incorrect log_console parameter!") $ readMaybe logConsoleStr
+            logConfig  = LogConfig logFile logLevel logConsole
+        return $ TelegramConfig telegramToken telegramHelp telegramRepeats logConfig
 
 getBotTelegramWithConfig :: TelegramConfig -> Integer -> TelegramBot
 getBotTelegramWithConfig c i = 
@@ -50,28 +59,46 @@ moveRequest :: TelegramConfig -> Integer -> IO ()
 moveRequest c i = do
         bot       <- return $ getBotTelegramWithConfig c i
         request   <- parseRequest (getUpdates bot)
+
         response  <- httpJSON request :: IO (Response Updates)
+
         let d = (getResponseStatusCode response)
-        
+        let configLog = logLevel $ logConfig $ config  bot
+        let fjleLog   = logFile  $ logConfig $ config  bot
         if d == 200  then do
+                if configLog == Debug then
+                                logSendFile configLog fjleLog
+                else
+                        print ""
                 let lastMess = findLastMessage (lastMessId bot) (result $ getResponseBody response)
                 let idMes = message_id $ message $ last (result $ getResponseBody response)
                 if idMes > i then do
                         let textMess = text $ fromJust lastMess
-                        if textMess == "/help" then do
-                                print $ helpMessage bot
-                        else do
-                                let count = repeats $ config bot
-                                let urlSend = sendLastMessage bot lastMess
-                                repeatMessage count urlSend
-                                threadDelay 10
-                                moveRequest c idMes
+                        case textMess of
+                                "/help" -> do   
+                                                let urlSend = urlHelpMessage bot lastMess
+                                                requestNew <- parseRequest $ urlSend
+                                                responseForMessage <- httpLbs requestNew
+                                                print $ helpMessage bot
+
+                                _       -> do
+                                                let count   = repeats $ config bot
+                                                let urlSend = urlLastMessage bot lastMess
+                                                repeatMessage count urlSend
+                                                threadDelay 10
+                                                moveRequest c idMes
                 else do
                         print "non repeats message"
                         threadDelay 10
                         moveRequest c idMes
         else do
-                 print "Error of connect" 
+                 let configl = logConfig c
+                 let lC = logConsole configl 
+                 let lF = logFile    configl
+                 if lC then
+                        appendFile lF (show response)
+                 else print "Error Request! Please check your connection and try again"
+
        
 repeatMessage :: Int -> String -> IO ()
 repeatMessage 0 _ = print "not repeats count"
@@ -80,10 +107,14 @@ repeatMessage r t = do
         responseForMessage <- httpLbs requestNew
         repeatMessage (r - 1) t
 
--- sendHelpMessage :: 
+urlHelpMessage :: TelegramBot -> Maybe TelegramMessage -> String
+urlHelpMessage bot mess = ap ++ i ++ t where
+        i  = "?chat_id=" ++ (show $ chat_id $ chat $ fromJust mess)
+        t  = "&text=" ++ ( help $ config bot)
+        ap = sendMessage bot 
 
-sendLastMessage :: TelegramBot -> Maybe TelegramMessage -> String
-sendLastMessage bot mess = ap ++ i ++ t where
+urlLastMessage :: TelegramBot -> Maybe TelegramMessage -> String
+urlLastMessage bot mess = ap ++ i ++ t where
         i  = "?chat_id=" ++ (show $ chat_id $ chat $ fromJust mess)
         t  = "&text=" ++ (text $ fromJust mess)
         ap = sendMessage bot 
@@ -95,4 +126,8 @@ findLastMessage oldId u = if lastId > oldId then Just lastU else Nothing where
         lastU   =  message $ last u
         lastId  =  message_id lastU
 
-    
+logSendFile :: Logging -> FilePath -> IO()
+logSendFile l f 
+                | l == Debug   = appendFile f "Debug"
+                | l == Warning = appendFile f "Warning"
+                | l == ErrorS   = appendFile f "Error"

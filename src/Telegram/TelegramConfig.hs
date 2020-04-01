@@ -12,13 +12,13 @@ import GHC.Generics
 import Bot.Bot
 import Telegram.RequestTelegram
 import Bot.EchoBot
-
+import Logging.Logging
 
 data TelegramConfig = TelegramConfig
   { token :: String
   , help :: String
   , repeats :: Int
---   , logConfig :: LogConfig
+ , logConfig :: LogConfig
   } deriving (Show, Generic)
 
 instance FromJSON TelegramConfig

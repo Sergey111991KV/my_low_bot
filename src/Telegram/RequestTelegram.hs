@@ -62,3 +62,5 @@ instance FromJSON Update
 instance FromJSON TelegramMessage
 
 newtype Token = Token Text
+
+type RequestParam = (String, String)

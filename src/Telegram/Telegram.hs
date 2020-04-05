@@ -19,15 +19,17 @@ import Data.Aeson
 import GHC.Generics
 import System.Environment
 import Text.Read (readMaybe)
+import Data.Typeable
+
 import Bot.EchoBot
 import Telegram.RequestTelegram
 import Telegram.TelegramConfig
 import Logging.Logging
-import Control.Exception          (try)
-import Data.Typeable
+import Telegram.KeyboardTelegram
 
 runTelegramEcho :: TelegramConfig -> Integer -> IO ()
 runTelegramEcho c i = moveRequest c i
+
 
 
 getTelegramConfig :: IO TelegramConfig
@@ -75,13 +77,20 @@ moveRequest c i = do
                 if idMes > i then do
                         let textMess = text $ fromJust lastMess
                         case textMess of
-                                "/help" -> do   
+                                "/help"    -> do   
                                                 let urlSend = urlHelpMessage bot lastMess
                                                 requestNew <- parseRequest $ urlSend
                                                 responseForMessage <- httpLbs requestNew
                                                 print $ helpMessage bot
+                                "/repeat" -> do
+                                                let idd = chat_id $ chat $ fromJust lastMess
+                                                let botur = botUrl bot
+                                                keyboardMessageSend idd botur
+                                                print idd
+                                                print botur
 
-                                _       -> do
+
+                                _           -> do
                                                 let count   = repeats $ config bot
                                                 let urlSend = urlLastMessage bot lastMess
                                                 repeatMessage count urlSend
@@ -118,8 +127,7 @@ urlLastMessage bot mess = ap ++ i ++ t where
         i  = "?chat_id=" ++ (show $ chat_id $ chat $ fromJust mess)
         t  = "&text=" ++ (text $ fromJust mess)
         ap = sendMessage bot 
-   
--- https://api.telegram.org/bot1059314734:AAEFI9JK2VX9KWvBXKIrPn0VEdqCCy6YlFo/sendMessage?chat_id=4.34218877e8&text=Hello
+
 
 findLastMessage :: Integer -> [Update] -> Maybe TelegramMessage
 findLastMessage oldId u = if lastId > oldId then Just lastU else Nothing where
@@ -131,3 +139,24 @@ logSendFile l f
                 | l == Debug   = appendFile f "Debug"
                 | l == Warning = appendFile f "Warning"
                 | l == ErrorS   = appendFile f "Error"
+
+
+
+
+-- keyboardMessageGet 
+-- lookup (messText m) keyboardAnswers
+
+-- keyboard :: String
+-- keyboard =
+--   "{\"keyboard\":[[\"1\",\"2\",\"3\",\"4\",\"5\"]],\"resize_keyboard\": true, \"one_time_keyboard\": true}"
+
+
+
+
+
+
+
+
+
+
+  -- https://api.telegram.org/bot1059314734:AAEFI9JK2VX9KWvBXKIrPn0VEdqCCy6YlFo/sendMessage?chat_id=4.34218877e8&text=Hello
